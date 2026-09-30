@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use crate::drivers::{ types::{SensorDriver, SensorDriverGeneralConfiguration, SENSOR_SETTINGS_PARTITION_SIZE}};
 
 
-const SENSOR_NAMES: [&str; 16] = [
+const SENSOR_NAMES: [&str; 17] = [
     "no_match",
     "generic_analog",
     "atlas_ec",
@@ -19,6 +19,7 @@ const SENSOR_NAMES: [&str; 16] = [
     "mhz9041a",
     "gndwater_sdi12",
     "ring_w_mux_sim",
+    crate::drivers::bmm350::TYPE_NAME,
 ];
 
 pub fn sensor_type_id_from_name(name: &str) -> Result<u16, ()> {
@@ -141,6 +142,10 @@ pub fn get_registry() -> [DriverCreateFunctions; 256] {
     driver_create_functions[15] = Some(driver_create_functions!(
         crate::drivers::ring_w_mux_sim::RingMuxTemperatureDriver,
         crate::drivers::ring_w_mux_sim::RingMuxTemperatureDriverSpecialConfiguration
+    ));
+    driver_create_functions[16] = Some(driver_create_functions!(
+        crate::drivers::bmm350::BMM350,
+        crate::drivers::bmm350::BMM350SpecialConfiguration
     ));
     driver_create_functions
 }
