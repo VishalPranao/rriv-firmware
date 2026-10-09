@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bmm350_driver = { package = "bmm350", path = "../bmm350" }
 rriv_board = { path = "../../board/rriv_board" } 
 control_interface = { path = "../../src/control_interface" }
 util = { path = "../../src/util"}
