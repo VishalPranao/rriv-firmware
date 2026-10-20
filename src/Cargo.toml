@@ -1,5 +1,5 @@
 [workspace]
-members = ["bmm350", "control_interface", "datalogger"]
+members = ["control_interface", "datalogger"]
 resolver = "2"
 
 [workspace.package]

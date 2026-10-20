@@ -1,16 +1,55 @@
-use bmm350_driver::{
+use bmm350_driver::i2c_bus::{Delay, I2CBus};
+use bmm350_driver::portable::{
     Bmm350 as Bmm350Device, ALTERNATE_I2C_ADDRESS, AVERAGING_4, AXES_XYZ, DEFAULT_I2C_ADDRESS,
     ODR_100_HZ, POWER_MODE_NORMAL,
 };
+use rriv_board::RRIVBoard;
 use serde_json::{json, Value};
 
-use super::bmm350_adapter::RrivBmm350Bus;
 use super::types::{
     copy_config_into_partition, getters, SensorDriver, SensorDriverGeneralConfiguration,
     SENSOR_SETTINGS_PARTITION_SIZE,
 };
 
 pub const TYPE_NAME: &str = "bmm350";
+
+/// Lends the RRIV board's I2C and delay operations to the forked driver.
+struct BMM350I2CBus<'a> {
+    board: &'a mut dyn RRIVBoard,
+}
+
+impl<'a> BMM350I2CBus<'a> {
+    fn new(board: &'a mut dyn RRIVBoard) -> Self {
+        Self { board }
+    }
+}
+
+impl I2CBus for BMM350I2CBus<'_> {
+    type Error = ();
+
+    fn write(&mut self, address: u8, bytes: &[u8]) -> Result<(), Self::Error> {
+        self.board.ic2_write(address, bytes)
+    }
+
+    fn write_read(
+        &mut self,
+        address: u8,
+        write: &[u8],
+        read: &mut [u8],
+    ) -> Result<(), Self::Error> {
+        self.board.ic2_write_read(address, write, read)
+    }
+}
+
+impl Delay for BMM350I2CBus<'_> {
+    fn delay_us(&mut self, microseconds: u16) {
+        self.board.delay_us(microseconds);
+    }
+
+    fn delay_ms(&mut self, milliseconds: u16) {
+        self.board.delay_ms(milliseconds);
+    }
+}
 
 const CONFIG_VERSION: u8 = 1;
 const CONFIG_VERSION_INDEX: usize = 0;
@@ -21,7 +60,7 @@ const CONFIG_AVERAGING_INDEX: usize = 4;
 const CONFIG_AXES_INDEX: usize = 5;
 const CONFIG_RESERVED_START: usize = 6;
 
-// Step 4 uses one fixed sensor configuration. These fields reserve a stable
+// The initial driver uses one fixed sensor configuration. These fields reserve a stable
 // EEPROM layout so runtime configuration can be added later without moving the
 // address or changing existing saved settings.
 #[repr(transparent)]
@@ -140,7 +179,7 @@ impl SensorDriver for BMM350 {
         // The adapter borrow ends after initialize(), so setup can use the
         // board again to report the result.
         let result = {
-            let mut bus = RrivBmm350Bus::new(board);
+            let mut bus = BMM350I2CBus::new(board);
             self.device.initialize(&mut bus)
         };
 
@@ -156,9 +195,29 @@ impl SensorDriver for BMM350 {
         }
     }
 
-    fn take_measurement(&mut self, _board: &mut dyn rriv_board::RRIVBoard) {
-        // Step 5 will use the same adapter to read and compensate one sample.
+    fn take_measurement(&mut self, board: &mut dyn rriv_board::RRIVBoard) {
+        // Clear every output first so a failed read can never leave an older
+        // sample looking current.
         self.measured_parameter_values = [None; 4];
+
+        let result = {
+            let mut bus = BMM350I2CBus::new(board);
+            self.device.measure(&mut bus)
+        };
+
+        match result {
+            Ok(measurement) => {
+                self.measured_parameter_values = [
+                    Some(f64::from(measurement.x)),
+                    Some(f64::from(measurement.y)),
+                    Some(f64::from(measurement.z)),
+                    Some(f64::from(measurement.temperature)),
+                ];
+            }
+            Err(error) => {
+                board.serial_debug(format_args!("BMM350 measurement failed: {:?}", error));
+            }
+        }
     }
 
     fn get_measured_parameter_count(&mut self) -> usize {
