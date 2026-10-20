@@ -1,5 +1,5 @@
 use bmm350_driver::i2c_bus::{Delay, I2CBus};
-use bmm350_driver::portable::{
+use bmm350_driver::{
     Bmm350 as Bmm350Device, ALTERNATE_I2C_ADDRESS, AVERAGING_4, AXES_XYZ, DEFAULT_I2C_ADDRESS,
     ODR_100_HZ, POWER_MODE_NORMAL,
 };

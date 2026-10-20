@@ -75,8 +75,8 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bmm350"
-version = "0.0.3"
-source = "git+https://github.com/VishalPranao/bmm350-rs.git?rev=86451530d3c315f00db447e6cc64d349ecb533c9#86451530d3c315f00db447e6cc64d349ecb533c9"
+version = "0.1.0"
+source = "git+https://github.com/VishalPranao/bmm350-rs.git?rev=83d1e301923c144c9440c163d95e3d96e6b44e55#83d1e301923c144c9440c163d95e3d96e6b44e55"
 dependencies = [
  "embedded-hal 1.0.0",
 ]
