@@ -1,7 +1,7 @@
 use bmm350_driver::i2c_bus::{Delay, I2CBus};
 use bmm350_driver::{
-    Bmm350 as Bmm350Device, ALTERNATE_I2C_ADDRESS, AVERAGING_4, AXES_XYZ, DEFAULT_I2C_ADDRESS,
-    ODR_100_HZ, POWER_MODE_NORMAL,
+    Bmm350 as Bmm350Device, Error as Bmm350Error, ALTERNATE_I2C_ADDRESS, AVERAGING_4, AXES_XYZ,
+    DEFAULT_I2C_ADDRESS, ODR_100_HZ, POWER_MODE_NORMAL,
 };
 use rriv_board::RRIVBoard;
 use serde_json::{json, Value};
@@ -189,6 +189,26 @@ impl SensorDriver for BMM350 {
                 self.device.address(),
                 self.device.variant_id().unwrap_or_default()
             )),
+            Err(Bmm350Error::PmuCommand { expected, status }) => {
+                let diagnostic = {
+                    let mut bus = BMM350I2CBus::new(board);
+                    self.device.pmu_diagnostic(&mut bus)
+                };
+                // serial_debug has a short output buffer, so keep each line compact.
+                board.serial_debug(format_args!(
+                    "BMM350 PMU exp={} st={:02x} after={:02x}",
+                    expected,
+                    status,
+                    diagnostic.status_after.unwrap_or(0xff)
+                ));
+                board.serial_debug(format_args!(
+                    "BMM350 PMU err={:02x} req={:02x} cmd={:02x} eff={:02x}",
+                    diagnostic.error.unwrap_or(0xff),
+                    diagnostic.requested.unwrap_or(0xff),
+                    diagnostic.command.unwrap_or(0xff),
+                    diagnostic.effective.unwrap_or(0xff)
+                ));
+            }
             Err(error) => {
                 board.serial_debug(format_args!("BMM350 setup failed: {:?}", error));
             }
