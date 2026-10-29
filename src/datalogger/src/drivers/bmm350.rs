@@ -51,6 +51,26 @@ impl Delay for BMM350I2CBus<'_> {
     }
 }
 
+fn report_pmu_diagnostic(board: &mut dyn RRIVBoard, device: &Bmm350Device) {
+    let diagnostic = {
+        let mut bus = BMM350I2CBus::new(board);
+        device.pmu_diagnostic(&mut bus)
+    };
+
+    // serial_debug has a short output buffer, so keep each line compact.
+    board.serial_debug(format_args!(
+        "BMM350 PMU after={:02x} err={:02x}",
+        diagnostic.status_after.unwrap_or(0xff),
+        diagnostic.error.unwrap_or(0xff)
+    ));
+    board.serial_debug(format_args!(
+        "BMM350 PMU req={:02x} cmd={:02x} eff={:02x}",
+        diagnostic.requested.unwrap_or(0xff),
+        diagnostic.command.unwrap_or(0xff),
+        diagnostic.effective.unwrap_or(0xff)
+    ));
+}
+
 const CONFIG_VERSION: u8 = 1;
 const CONFIG_VERSION_INDEX: usize = 0;
 const CONFIG_ADDRESS_INDEX: usize = 1;
@@ -190,24 +210,15 @@ impl SensorDriver for BMM350 {
                 self.device.variant_id().unwrap_or_default()
             )),
             Err(Bmm350Error::PmuCommand { expected, status }) => {
-                let diagnostic = {
-                    let mut bus = BMM350I2CBus::new(board);
-                    self.device.pmu_diagnostic(&mut bus)
-                };
-                // serial_debug has a short output buffer, so keep each line compact.
                 board.serial_debug(format_args!(
-                    "BMM350 PMU exp={} st={:02x} after={:02x}",
-                    expected,
-                    status,
-                    diagnostic.status_after.unwrap_or(0xff)
+                    "BMM350 PMU exp={} st={:02x}",
+                    expected, status
                 ));
-                board.serial_debug(format_args!(
-                    "BMM350 PMU err={:02x} req={:02x} cmd={:02x} eff={:02x}",
-                    diagnostic.error.unwrap_or(0xff),
-                    diagnostic.requested.unwrap_or(0xff),
-                    diagnostic.command.unwrap_or(0xff),
-                    diagnostic.effective.unwrap_or(0xff)
-                ));
+                report_pmu_diagnostic(board, &self.device);
+            }
+            Err(Bmm350Error::ConfigurationRejected) => {
+                board.serial_debug(format_args!("BMM350 setup: configuration rejected"));
+                report_pmu_diagnostic(board, &self.device);
             }
             Err(error) => {
                 board.serial_debug(format_args!("BMM350 setup failed: {:?}", error));
