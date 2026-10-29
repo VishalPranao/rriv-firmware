@@ -56,6 +56,7 @@ impl CommandType {
             ("datalogger", "get", "") => CommandType::DataloggerGet,
             ("datalogger","reset", "") => CommandType::DataloggerReset,
             ("datalogger","set","mode") => CommandType::DataloggerSetMode,
+            ("datalogger","setmode", "") => CommandType::DataloggerSetMode,
             ("sensor","set","") => CommandType::SensorSet,
             ("sensor","get", "") => CommandType::SensorGet,
             ("sensor","remove", "") => CommandType::SensorRemove,
